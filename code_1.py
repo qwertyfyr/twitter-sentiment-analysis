@@ -46,14 +46,14 @@ df_filtered = remover.transform(df_tokenized)
 df_filtered.select("filtered_tokens").show(5, truncate=False)
 
 
-# Training the Classifier
+# add label for targets: 2 positive, 1 neutral, 0 negative. 
 df_labeled = df_filtered.withColumn("label", when(col("target") == 4, 2) \
                                                 .when(col("target") == 2, 1) \
                                                 .otherwise(0))
 
 word2vec = Word2Vec(vectorSize=100, inputCol="filtered_tokens", outputCol="features")
 
-# Classifier
+# Create classifier and pipeline
 lr = LogisticRegression(maxIter=10, regParam=0.01)
 
 pipeline = Pipeline(stages=[word2vec, lr])
@@ -70,12 +70,16 @@ df_trend = predictions.withColumn("date_only", to_date("clean_date", "MMM dd yyy
 daily_sentiment = df_trend.groupBy("date_only", "prediction").count().orderBy("date_only")
 daily_sentiment.show()
 
+
+# Hashtag Trends
 df_with_hashtags = predictions.withColumn("hashtag", regexp_extract("text", r"#(\w+)", 1))
 
-# filter out rows not containing hashtags
+# Filter out rows not containing hashtags
 df_with_hashtags = df_with_hashtags.filter(col("hashtag") != "")
 
-
-# Group by hashtag and sentiment
+# Group rows by hashtags and prediction, and order by count
 hashtag_trend = df_with_hashtags.groupBy("hashtag", "prediction").count().orderBy("count", ascending=False)
 hashtag_trend.show(5)
+
+hashtag_trend.toPandas().to_csv("hashtag_sentiment.csv", index=False)
+daily_sentiment.toPandas().to_csv("daily_sentiment.csv", index=False)
