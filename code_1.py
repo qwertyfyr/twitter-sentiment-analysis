@@ -1,7 +1,7 @@
 import kagglehub
 from pyspark.sql import SparkSession
-from pyspark.sql.types import StructType, StructField, StringType, IntegerType, TimestampType
-from pyspark.sql.functions import col, lower, regexp_replace,regexp_extract, when, to_timestamp, to_date
+from pyspark.sql.types import StructType, StructField, StringType, IntegerType
+from pyspark.sql.functions import col, lower, regexp_replace,regexp_extract, when, to_date
 from pyspark.ml.classification import LogisticRegression
 from pyspark.ml.feature import RegexTokenizer, StopWordsRemover, Word2Vec
 from pyspark.ml import Pipeline
@@ -29,7 +29,6 @@ df_clean = (
     .withColumn("clean_text", regexp_replace("clean_text", r"@\w+", "")) # Remove mentions
     .withColumn("clean_text", regexp_replace("clean_text", r"[^\w\s]", "")) # Remove punctuation
     .withColumn("clean_text", regexp_replace("clean_text", r"\s+", " ")) # Whitespace being 1
-    .withColumn("clean_text", regexp_replace("clean_text", r"#\w+", " ")) # Whitespace being 1
     .withColumn("clean_date", regexp_replace("date", r"^[A-Za-z]{3}\s|\d{2}:\d{2}:\d{2}\s\w{3}\s", ""))
 )
 
@@ -61,7 +60,7 @@ model = pipeline.fit(df_labeled)
 
 # Predict
 predictions = model.transform(df_labeled)
-predictions.select("label", "prediction").show(5)
+predictions.select("text","filtered_tokens").show(5)
 
 
 # Sentiment Trends
@@ -72,7 +71,7 @@ daily_sentiment.show()
 
 
 # Hashtag Trends
-df_with_hashtags = predictions.withColumn("hashtag", regexp_extract("text", r"#(\w+)", 1))
+df_with_hashtags = predictions.withColumn("hashtag", regexp_extract("text", r"#\w+", 0))
 
 # Filter out rows not containing hashtags
 df_with_hashtags = df_with_hashtags.filter(col("hashtag") != "")
